@@ -83,7 +83,7 @@ export class IF {
             if (isConditionBranch && !matched) {
                 const result = branch.condition
                     ? // @ts-ignore
-                      await ctx.processFunction(`$checkCondition[${branch.condition}]`)
+                      await this.ctx.processFunction(`$checkCondition[${branch.condition}]`)
                     : 'false';
                 if (result === 'true') {
                     output = branch.code;

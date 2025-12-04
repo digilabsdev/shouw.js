@@ -114,6 +114,8 @@ export class Interpreter extends Container {
                     (result?.toString().trim() ?? '') +
                     currentCode.slice(unpacked.index + unpacked.all.length);
 
+                i = -1;
+                functions = this.extractFunctions(code, false, lastIndex);
                 continue;
             }
 
@@ -148,6 +150,9 @@ export class Interpreter extends Container {
                     if (!key || !value || !Object.hasOwn(this, key)) continue;
                     this[key] = value;
                 }
+
+                i = -1;
+                functions = this.extractFunctions(currentCode, false, lastIndex);
             } catch (err: any) {
                 await this.error(err, func);
             }

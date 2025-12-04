@@ -33,6 +33,9 @@ exports.InitCommand = async (_args) => {
     const token = await getToken();
     if (token === '--exit') return log('Exiting...', 'EXIT');
 
+    const prefix = await getPrefix();
+    if (prefix === '--exit') return log('Exiting...', 'EXIT');
+
     console.log('\n');
 
     if (!existsSync(name)) {
@@ -47,7 +50,7 @@ exports.InitCommand = async (_args) => {
     writeFileSync(join(name, 'package.json'), getPackageJson(name, description, music));
 
     log('Creating index.js...');
-    writeFileSync(join(name, 'index.js'), getIndexJs(music, token));
+    writeFileSync(join(name, 'index.js'), getIndexJs(music, token, prefix));
 
     log('Creating commands directory...');
     const commandsDir = join(name, 'commands');
@@ -99,6 +102,16 @@ async function getName() {
     return name.toLowerCase().replace(/ |\//g, '-');
 }
 
+/**
+ * This function is used to get the bot prefix.
+ *
+ * @returns {Promise<string>} - The bot prefix.
+ */
+async function getPrefix() {
+    const prefix = await question('Enter your bot prefix');
+    if (!prefix) return '!';
+    return prefix;
+}
 /**
  * This function is used to get the project description.
  *
@@ -152,10 +165,10 @@ function formatQuestion(query) {
  */
 function getPackageJson(name, description, music) {
     const dependencies = {
-        'shouw.js': 'github:shouwjs/shouw.js'
+        'shouw.js': 'github:digilabsdev/shouw.js'
     };
     if (music) {
-        dependencies['shouw.music'] = 'github:shouwjs/music';
+        dependencies['shouw.music'] = 'github:digilabsdev/music';
         dependencies['ffmpeg-static'] = 'latest';
     }
 
@@ -186,7 +199,7 @@ function getPackageJson(name, description, music) {
  * @returns {string} - The index.js file.
  */
 
-function getIndexJs(music, token) {
+function getIndexJs(music, token, prefix) {
     return `const { ShouwClient } = require('shouw.js');${
         music
             ? `const { ShouwMusic, Events } = require('shouw.music');
@@ -210,7 +223,7 @@ const client = new ShouwClient({
     extensions: [music],`
             : ''
     }
-    prefix: '!',
+    prefix: '${prefix}',
     intents: ['Guilds', 'GuildMessages', 'MessageContent'],
     events: ['messageCreate'],
 });

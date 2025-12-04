@@ -28,13 +28,13 @@
     "license": "Apache-2.0",
     "dependencies": {
         "chalk": "^4.1.2",
-        "discord.js": "^14.21.0"
+        "discord.js": "^14.25.1"
     },
     "devDependencies": {
-        "@biomejs/biome": "^2.0.5",
-        "@typescript/native-preview": "^7.0.0-dev.20250626.1",
-        "tsup": "^8.5.0",
-        "typescript": "^5.8.3"
+        "@biomejs/biome": "^2.3.8",
+        "@typescript/native-preview": "^7.0.0-dev.20251204.1",
+        "tsup": "^8.5.1",
+        "typescript": "^5.9.3"
     },
     "repository": {
         "type": "git",
@@ -58,18 +58,16 @@
     },
     "scripts": {
         "1": "=========================[BUILD]==========================",
+        "2": "=======================[FORMATTING]=======================",
+        "3": "========================[TESTING]=========================",
         "build": "npm run pretty && npm run build:all",
         "build:ts": "npx tsgo -p tsconfig.json",
         "build:types": "npx tsup --config scripts/tsup.config.json --dts-only --outDir typings",
         "build:docs": "npx typedoc --options scripts/typedoc.json",
         "build:all": "npm run build:ts && npm run build:types",
-        
-        "2": "=======================[FORMATTING]=======================",
         "lint": "biome lint --fix --config-path scripts/biome.json",
         "format": "biome format --write --config-path scripts/biome.json",
         "pretty": "npm run format && npm run lint",
-        
-        "3": "========================[TESTING]=========================",
         "dev": "node tests/client",
         "apigen": "node scripts/apigen.js"
     }

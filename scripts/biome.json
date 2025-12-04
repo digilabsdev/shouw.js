@@ -1,6 +1,6 @@
 {
     "root": false,
-    "$schema": "https://biomejs.dev/schemas/2.0.5/schema.json",
+    "$schema": "https://biomejs.dev/schemas/2.3.8/schema.json",
     "formatter": {
         "enabled": true,
         "formatWithErrors": true,
@@ -45,7 +45,8 @@
             },
             "correctness": {
                 "noUnusedVariables": "off",
-                "noUnusedPrivateClassMembers": "off"
+                "noUnusedPrivateClassMembers": "off",
+                "useParseIntRadix": "off"
             }
         }
     },

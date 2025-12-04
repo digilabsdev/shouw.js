@@ -92,7 +92,7 @@ export class BaseClient extends Client<true> {
                       : ActivityType.Playing;
 
             this.#statuses.set(this.#statuses.size, {
-                afk: data.afk ?? data.status === 'idle' ?? false,
+                afk: (data.afk ?? data.status === 'idle') || false,
                 status: data.status ?? 'online',
                 shardId: data.shardId ?? this.shard?.ids ?? void 0,
                 time: timeMs,

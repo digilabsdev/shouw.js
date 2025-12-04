@@ -1,4 +1,4 @@
-import { type CommandData, type ShouwClient, type Interaction, Interpreter } from '../../index.js';
+import { type CommandData, type Interaction, type ShouwClient, Interpreter } from '../../index.js';
 import type { GuildMember } from 'discord.js';
 
 /**
@@ -68,7 +68,6 @@ export default async function Events(interaction: Interaction, client: any): Pro
 
         if (!commands?.length) return;
         for (const command of commands) {
-            const args = interaction.fields.fields.map((field) => field.value);
             if (command.name?.includes('$') && command.name !== '$') {
                 command.name = Array.isArray(command.name)
                     ? await Promise.all(
@@ -80,7 +79,7 @@ export default async function Events(interaction: Interaction, client: any): Pro
                     : await INIT({ code: command.name }, interaction, [interaction.customId], client);
             }
 
-            await INIT(command, interaction, args, client);
+            await INIT(command, interaction, [], client);
         }
     } else {
         /**
@@ -94,13 +93,13 @@ export default async function Events(interaction: Interaction, client: any): Pro
         if (!commands?.length) return;
         for (const command of commands) {
             if (
-                // @ts-ignore
+                // @ts-expect-error
                 (!!command.subCommand && interaction.options._subcommand !== command.subCommand) ||
-                // @ts-ignore
+                // @ts-expect-error
                 (!!command.subCommandGroup && interaction.options._group !== command.subCommandGroup)
             )
                 continue;
-            // @ts-ignore
+            // @ts-expect-error
             const args = interaction.options?._hoistedOptions?.map((option: any) => option.value);
             if (command.name?.includes('$') && command.name !== '$') {
                 command.name = await INIT({ code: command.name as string }, interaction, args, client);

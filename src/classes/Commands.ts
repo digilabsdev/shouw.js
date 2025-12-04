@@ -94,7 +94,7 @@ export class CommandsManager implements CommandsEventMap {
     private loadEvents(events: string[]): undefined {
         if (!Array.isArray(events)) return;
         (this.events = events.filter((e: string) => Object.values(DiscordEvents).includes(e as DiscordEvents))).push(
-            'ready'
+            'clientReady'
         );
 
         for (const event of this.events) {
