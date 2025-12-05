@@ -754,6 +754,92 @@
         ]
     },
     {
+        "name": "$arrayAt",
+        "description": "Return the element at the given index of the array",
+        "all": "$arrayAt[name;index]",
+        "example": "\n$createArray[array;1;2;3;4;5]\n\n$arrayAt[array;1] // return 1\n$arrayAt[array;3] // return 3\n",
+        "params": [
+            {
+                "name": "name",
+                "type": "String",
+                "required": true,
+                "description": "The name of the array"
+            },
+            {
+                "name": "index",
+                "type": "Number",
+                "required": true,
+                "description": "The index of the element to return"
+            }
+        ]
+    },
+    {
+        "name": "$arrayConcat",
+        "description": "Concat the given arrays and return the result",
+        "all": "$arrayConcat[separator;names]",
+        "example": "\n$createArray[array1;1;2;3]\n$createArray[array2;4;5;6]\n\n$arrayConcat[;array1;array2] // return 1, 2, 3, 4, 5, 6\n",
+        "params": [
+            {
+                "name": "separator",
+                "type": "String",
+                "required": true,
+                "description": "The separator to use between the elements"
+            },
+            {
+                "name": "names",
+                "type": "String",
+                "required": true,
+                "description": "The names of the arrays to concat"
+            }
+        ]
+    },
+    {
+        "name": "$arrayEvery",
+        "description": "Check if every element of the array satisfies the given condition",
+        "all": "$arrayEvery[name;query;queryType?]",
+        "example": "\n$createArray[array1;1;2;3;4;5]\n$arrayEvery[array1;1;==] // return false\n$arrayEvery[array1;1;>=] // return true\n\n$createArray[array2;1;1;1;1;1]\n$arrayEvery[array2;1;==] // return true\n",
+        "params": [
+            {
+                "name": "name",
+                "type": "String",
+                "required": true,
+                "description": "The name of the array"
+            },
+            {
+                "name": "query",
+                "type": "String",
+                "required": true,
+                "description": "The query to check"
+            },
+            {
+                "name": "queryType",
+                "type": "String",
+                "required": false,
+                "description": "The type of the query"
+            }
+        ]
+    },
+    {
+        "name": "$createArray",
+        "description": "Creates an array with the given name and elements",
+        "all": "$createArray[name;...elements]",
+        "example": "\n$createArray[array;1;2;3;4;5]\n\n$arrayAt[array;1] // return 1\n$arrayAt[array;3] // return 3\n",
+        "params": [
+            {
+                "name": "name",
+                "type": "String",
+                "required": true,
+                "description": "The name of the array"
+            },
+            {
+                "name": "elements",
+                "type": "String",
+                "required": true,
+                "description": "The elements of the array"
+            }
+        ]
+    },
+    {
         "name": "$createObject",
         "description": "Creates an object with the given name and value",
         "all": "$createObject[name;...value]",

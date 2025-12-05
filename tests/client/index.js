@@ -11,8 +11,16 @@ const { ShouwClient } = require('../..');
 const client = new ShouwClient({
     token: process.env.TOKEN,
     prefix: '+',
-    intents: ['Guilds', 'GuildMessages', 'MessageContent'],
-    events: ['messageCreate', 'interactionCreate'],
+    intents: ['Guilds', 'GuildMessages', 'MessageContent', 'AutoModerationConfiguration', 'AutoModerationExecution'],
+    debug: true,
+    events: [
+        'messageCreate',
+        'interactionCreate',
+        'autoModerationActionExecution',
+        'autoModerationRuleCreate',
+        'autoModerationRuleDelete',
+        'autoModerationRuleUpdate'
+    ],
     disableFunctions: ['$clientToken']
 });
 

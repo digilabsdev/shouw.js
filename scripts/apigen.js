@@ -55,4 +55,6 @@ function write() {
     const outputPath = path.join(scriptsDir, 'functions.json');
     fs.rmSync(outputPath, { force: true });
     fs.writeFileSync(outputPath, JSON.stringify(functionArray, null, 4));
+
+    console.log(`[!?]  ::  Successfully generated ${functionArray.length} functions!`);
 }
