@@ -366,7 +366,9 @@ export class ShouwClient extends BaseClient {
     public debug(message: string, type: 'ERROR' | 'DEBUG' | 'WARN' = 'DEBUG', force = false): ShouwClient {
         if (message && (force === true || this.shouwOptions.debug === true)) {
             const color = type === 'ERROR' ? red : type === 'WARN' ? yellow : blue;
-            console.log(`[${color(type)}] :: ${message}`);
+            console.log(
+                `[${color(type)}] :: ${message}${(message as any)?.stack ? `\n\n${(message as any)?.stack}` : ''}`
+            );
         }
 
         return this;

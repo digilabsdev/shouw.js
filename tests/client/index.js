@@ -20,7 +20,7 @@ const client = new ShouwClient({
  * Register a command.
  */
 client.command({
-    type: 'ready',
+    type: 'clientReady',
     code: (ctx) => {
         ctx.client.debug(`Logged in as ${ctx.client.user.tag}!`, void 0, true);
     }

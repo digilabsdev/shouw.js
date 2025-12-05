@@ -40,6 +40,7 @@ type CustomParserResult =
 interface ParserData {
     embeds: Array<Discord.APIEmbed>;
     components: Array<ComponentTypes>;
+    modal: Discord.APIModalInteractionResponseCallbackData;
     content: string | undefined;
     attachments: Array<unknown | null>;
     flags: Array<Discord.MessageFlags | null>;
@@ -66,6 +67,7 @@ export interface CustomParserData {
 export async function Parser(ctx: Interpreter, input: string): Promise<SendData> {
     const embeds: Array<Discord.APIEmbed> = [];
     const components: Array<any> = [];
+    let modal: Discord.APIModalInteractionResponseCallbackData = {} as any;
     const attachments: Array<unknown | null> = [];
     const flags: Array<Discord.MessageFlags | null> = [];
     const stickers: Array<Discord.StickerResolvable> = [];
@@ -86,6 +88,9 @@ export async function Parser(ctx: Interpreter, input: string): Promise<SendData>
             isParsed = true;
         } else if (key === 'actionrow') {
             components.push(await ActionRowParser(ctx, value));
+            isParsed = true;
+        } else if (key === 'modal' || key === 'newmodal') {
+            modal = await ModalParser(ctx, value);
             isParsed = true;
         } else if (key === 'attachment' || key === 'file') {
             attachments.push(AttachmentParser(ctx, value, key));
@@ -150,6 +155,7 @@ export async function Parser(ctx: Interpreter, input: string): Promise<SendData>
         {
             embeds,
             components,
+            modal,
             content,
             attachments,
             flags,
@@ -317,8 +323,6 @@ function EmbedParser(_ctx: Interpreter, content: string): Discord.APIEmbed {
  * @example {actionRow:
  *     {button:label:style:customId:disabled?:emoji?}
  *     {selectMenu:customId:placeholder:minValues?:maxValues?:disabled?:(read select menu options below)}
- *     {textInput:label:style:customId:required?:placeholder?:minLength?:maxLength?:value?}
- *     {modal:label:style:customId:required?:placeholder?:minLength?:maxLength?:value?}
  * }
  *
  *     * Select Menu Options:
@@ -332,10 +336,9 @@ async function ActionRowParser(
     ctx: Interpreter,
     content: string
 ): Promise<Discord.APIActionRowComponent<Discord.APIComponentInActionRow> | null> {
-    const components: Array<SelectMenuTypes | Discord.APIButtonComponent | Discord.APITextInputComponent> = [];
+    const components: Array<SelectMenuTypes | Discord.APIButtonComponent> = [];
     for (const match of matchStructure(content)) {
         const [key, rawValue] = keyValue(match);
-        const value = rawValue.unescape();
 
         /**
          * BUTTON PARSER
@@ -345,166 +348,8 @@ async function ActionRowParser(
             const button = await parseButton(ctx, rawValue);
             if (button) components.push(button);
         } else if (key === 'selectmenu') {
-            /**
-             * SELECT MENU PARSER
-             * {selectMenu:customId:placeholder:minValues?:maxValues?:disabled?:(read select menu options above)}
-             */
-            const [customId, placeholder, minValues = '0', maxValues = '1', disabled = 'false'] =
-                splitEscaped(rawValue);
-            if (!customId || !minValues || !maxValues) continue;
-            const stringInputMatches: RegExpExecArray[] = [...rawValue.matchAll(/\{stringInput:([^}]+)\}/gim)];
-            let SelectMenu: SelectMenuTypes | null = null;
-
-            /**
-             * String Input Parser
-             * {stringInput:label:value:description?:default?:emoji?}
-             */
-            if (stringInputMatches.length) {
-                const options: (Discord.APISelectMenuOption | null)[] = await Promise.all(
-                    stringInputMatches.map(async (match) => {
-                        const [label, value, description, isDefault = 'false', emojiInput] = splitLengthParams(
-                            match[1],
-                            4,
-                            'emoji'
-                        );
-                        if (!label || !value) return null;
-                        const emoji = emojiInput
-                            ? ((await ctx.util.getEmoji(ctx, emojiInput)) ?? emojiInput)
-                            : undefined;
-
-                        return {
-                            label,
-                            value,
-                            default: isDefault.toLowerCase() === 'true',
-                            emoji: emoji ?? void 0,
-                            description: description ?? void 0
-                        } as Discord.APISelectMenuOption;
-                    })
-                );
-
-                SelectMenu = {
-                    type: Discord.ComponentType.StringSelect,
-                    custom_id: customId,
-                    options: options.filter(Boolean) as Discord.APISelectMenuOption[]
-                };
-            } else {
-                const selectTypeMatch = value.match(
-                    /\{(userInput|roleInput|mentionableInput|channelInput(?::[^}]+)?)\}/im
-                );
-                if (!selectTypeMatch) continue;
-                const typeStr = selectTypeMatch[1].toLowerCase();
-
-                switch (true) {
-                    /**
-                     * User Input Parser
-                     * {userInput}
-                     */
-                    case typeStr === 'userinput': {
-                        SelectMenu = {
-                            type: Discord.ComponentType.UserSelect,
-                            custom_id: customId
-                        };
-                        break;
-                    }
-
-                    /**
-                     * Role Input Parser
-                     * {roleInput}
-                     */
-                    case typeStr === 'roleinput': {
-                        SelectMenu = {
-                            type: Discord.ComponentType.RoleSelect,
-                            custom_id: customId
-                        };
-                        break;
-                    }
-
-                    /**
-                     * Mentionable Input Parser
-                     * {mentionableInput}
-                     */
-                    case typeStr === 'mentionableinput': {
-                        SelectMenu = {
-                            type: Discord.ComponentType.MentionableSelect,
-                            custom_id: customId
-                        };
-                        break;
-                    }
-
-                    /**
-                     * Channel Input Parser
-                     * {channelInput:channelType?}
-                     */
-                    case typeStr.startsWith('channelinput'): {
-                        const [typeParam] = splitEscaped(typeStr.replace('channelinput:', ''));
-                        let types: number[] | undefined;
-
-                        switch (typeParam) {
-                            case 'text':
-                            case '0':
-                                types = [0];
-                                break;
-                            case 'voice':
-                            case '2':
-                                types = [2];
-                                break;
-                            default:
-                                types = undefined;
-                        }
-
-                        SelectMenu = {
-                            type: Discord.ComponentType.ChannelSelect,
-                            custom_id: customId,
-                            channel_types: types
-                        };
-                        break;
-                    }
-                }
-            }
-
-            if (SelectMenu) {
-                components.push({
-                    ...SelectMenu,
-                    min_values: Number.parseInt(minValues),
-                    max_values: Number.parseInt(maxValues),
-                    disabled: disabled.toLowerCase() === 'true',
-                    placeholder: placeholder ?? void 0
-                });
-            }
-        } else if (key === 'textinput' || key === 'modal') {
-            /**
-             * TEXT INPUT PARSER
-             * {textInput:label:style:customId:required?:placeholder?:minLength?:maxLength?:value?}
-             * {modal:label:style:customId:required?:placeholder?:minLength?:maxLength?:value?}
-             */
-            const [label, styleStr, customId, required = 'false', placeholder, minLength, maxLength, value] =
-                splitEscapedEmoji(rawValue);
-            if (!label || !styleStr || !customId) continue;
-            let style: Discord.TextInputStyle | null = null;
-            switch ((styleStr ?? '').toLowerCase()) {
-                case 'short':
-                case '1':
-                    style = Discord.TextInputStyle.Short;
-                    break;
-                case 'paragraph':
-                case '2':
-                    style = Discord.TextInputStyle.Paragraph;
-                    break;
-                default:
-                    continue;
-            }
-
-            components.push({
-                type: Discord.ComponentType.TextInput,
-                label,
-                style,
-                value,
-                custom_id: customId,
-                required: required.toLowerCase() === 'true',
-                placeholder: placeholder ?? void 0,
-                min_length: minLength ? Number.parseInt(minLength) : void 0,
-                max_length: maxLength ? Number.parseInt(maxLength) : void 0
-            });
+            const selectMenu = await SelectMenuParser(ctx, rawValue);
+            if (selectMenu) components.push(selectMenu);
         }
     }
 
@@ -513,6 +358,292 @@ async function ActionRowParser(
         type: Discord.ComponentType.ActionRow,
         components
     };
+}
+
+/**
+ * A function to parse the select menu data from the input and return the parsed select menu
+ * @param {Interpreter} ctx - The context of the interpreter
+ * @param {string} rawValue - The content to parse
+ * @return {Promise<SelectMenuTypes | null>} - The parsed select menu
+ * @example {selectMenu:customId:placeholder:minValues?:maxValues?:disabled?:(read select menu options below)}
+ *
+ *     * Select Menu Options:
+ *         {stringInput:label:value:description?:default?:emoji?}
+ *         {userInput}
+ *         {roleInput}
+ *         {mentionableInput}
+ *         {channelInput:channelType?}
+ */
+async function SelectMenuParser(ctx: Interpreter, rawValue: string): Promise<SelectMenuTypes | null> {
+    const [customId, placeholder, minValues = '0', maxValues = '1', disabled = 'false'] = splitEscaped(rawValue);
+    if (!customId || !minValues || !maxValues) return null;
+    const stringInputMatches: RegExpExecArray[] = [...rawValue.matchAll(/\{stringInput:([^}]+)\}/gim)];
+    let SelectMenu: SelectMenuTypes | null = null;
+    const value = rawValue.unescape();
+
+    /**
+     * String Input Parser
+     * {stringInput:label:value:description?:default?:emoji?}
+     */
+    if (stringInputMatches.length) {
+        const options: (Discord.APISelectMenuOption | null)[] = await Promise.all(
+            stringInputMatches.map(async (match) => {
+                const [label, value, description, isDefault = 'false', emojiInput] = splitLengthParams(
+                    match[1],
+                    4,
+                    'emoji'
+                );
+                if (!label || !value) return null;
+                const emoji = emojiInput ? ((await ctx.util.getEmoji(ctx, emojiInput)) ?? emojiInput) : undefined;
+
+                return {
+                    label,
+                    value,
+                    default: isDefault.toLowerCase() === 'true',
+                    emoji: emoji ?? void 0,
+                    description: description ?? void 0
+                } as Discord.APISelectMenuOption;
+            })
+        );
+
+        SelectMenu = {
+            type: Discord.ComponentType.StringSelect,
+            custom_id: customId,
+            options: options.filter(Boolean) as Discord.APISelectMenuOption[]
+        };
+    } else {
+        const selectTypeMatch = value.match(/\{(userInput|roleInput|mentionableInput|channelInput(?::[^}]+)?)\}/im);
+        if (!selectTypeMatch) return null;
+        const typeStr = selectTypeMatch[1].toLowerCase();
+
+        switch (true) {
+            /**
+             * User Input Parser
+             * {userInput}
+             */
+            case typeStr === 'userinput': {
+                SelectMenu = {
+                    type: Discord.ComponentType.UserSelect,
+                    custom_id: customId
+                };
+                break;
+            }
+
+            /**
+             * Role Input Parser
+             * {roleInput}
+             */
+            case typeStr === 'roleinput': {
+                SelectMenu = {
+                    type: Discord.ComponentType.RoleSelect,
+                    custom_id: customId
+                };
+                break;
+            }
+
+            /**
+             * Mentionable Input Parser
+             * {mentionableInput}
+             */
+            case typeStr === 'mentionableinput': {
+                SelectMenu = {
+                    type: Discord.ComponentType.MentionableSelect,
+                    custom_id: customId
+                };
+                break;
+            }
+
+            /**
+             * Channel Input Parser
+             * {channelInput:channelType?}
+             */
+            case typeStr.startsWith('channelinput'): {
+                const [typeParam] = splitEscaped(typeStr.replace('channelinput:', ''));
+                let types: number[] | undefined;
+
+                switch (typeParam) {
+                    case 'text':
+                    case '0':
+                        types = [0];
+                        break;
+                    case 'voice':
+                    case '2':
+                        types = [2];
+                        break;
+                    default:
+                        types = undefined;
+                }
+
+                SelectMenu = {
+                    type: Discord.ComponentType.ChannelSelect,
+                    custom_id: customId,
+                    channel_types: types
+                };
+                break;
+            }
+        }
+    }
+
+    return {
+        ...SelectMenu,
+        placeholder,
+        min_values: Number.parseInt(minValues),
+        max_values: Number.parseInt(maxValues)
+    } as SelectMenuTypes;
+}
+
+/**
+ * A function to parse the modal data from the input and return the parsed modal
+ * @param {Interpreter} ctx - The context of the interpreter
+ * @param {string} content - The content to parse
+ * @return {Promise<Discord.APIModalInteractionResponseCallbackData>} - The parsed modal
+ * @example {modal:
+ *     {title:string}
+ *     {customId:string}
+ *     {textInput:customId:label:style:placeholder?:minLength?:maxLength?:required?:value?}
+ *     {textDisplay:content}
+ *     {label:label:description?:(read label options below)}
+ * }
+ *
+ *     * Label Options:
+ *         {textInput:customId:label:style:placeholder?:minLength?:maxLength?:required?:value?}
+ *         {selectMenu:customId:placeholder:minValues?:maxValues?:disabled?:(read select menu options above)
+ */
+async function ModalParser(
+    ctx: Interpreter,
+    content: string
+): Promise<Discord.APIModalInteractionResponseCallbackData> {
+    const builder = new Discord.ModalBuilder();
+    const title = content.match(/\{title:([^}]+)\}/im)?.[1]?.unescape() ?? 'Modal';
+    const customId = content.match(/\{customId:([^}]+)\}/im)?.[1]?.unescape() ?? 'modal';
+
+    for (const match of matchStructure(content)) {
+        const [key, rawValue] = keyValue(match);
+        const Value = rawValue.unescape();
+
+        if (key === 'textinput') {
+            const [
+                customId,
+                label,
+                style,
+                description,
+                placeholder,
+                minLength = '0',
+                maxLength = '4000',
+                required = 'false',
+                value = ''
+            ] = splitEscaped(Value);
+            if (!customId || !label || !style) continue;
+            builder.addLabelComponents(
+                new Discord.LabelBuilder()
+                    .setLabel(label)
+                    .setDescription(description ?? '')
+                    .setTextInputComponent(
+                        new Discord.TextInputBuilder()
+                            .setCustomId(customId)
+                            .setStyle(
+                                style === 'short' ? Discord.TextInputStyle.Short : Discord.TextInputStyle.Paragraph
+                            )
+                            .setPlaceholder(placeholder ?? '')
+                            .setMinLength(Number.parseInt(minLength))
+                            .setMaxLength(Number.parseInt(maxLength))
+                            .setRequired(required.toLowerCase() === 'true')
+                            .setValue(value)
+                    )
+            );
+        } else if (key === 'textdisplay' || key === 'text') {
+            builder.addTextDisplayComponents(new Discord.TextDisplayBuilder().setContent(Value));
+        } else if (key === 'fileupload' || key === 'file') {
+            const [customId, label, description, minValue, maxValue, required = 'false'] = splitEscaped(Value);
+            if (!customId || !label) continue;
+
+            builder.addLabelComponents(
+                new Discord.LabelBuilder()
+                    .setLabel(label)
+                    .setDescription(description ?? '')
+                    .setFileUploadComponent(
+                        new Discord.FileUploadBuilder()
+                            .setCustomId(customId)
+                            .setMinValues(minValue ? Number.parseInt(minValue) : 0)
+                            .setMaxValues(maxValue ? Number.parseInt(maxValue) : 5)
+                            .setRequired(required.toLowerCase() === 'true')
+                    )
+            );
+        } else if (key === 'label') {
+            const [label, description, ...rest] = splitEscaped(Value);
+            if (!label) continue;
+            const labelBuilder = new Discord.LabelBuilder().setLabel(label).setDescription(description ?? '');
+            for (const match of matchStructure(rest.join(':'))) {
+                const [key, rawValue] = keyValue(match);
+                const Value = rawValue.unescape();
+
+                if (key === 'textinput') {
+                    const [
+                        customId,
+                        label,
+                        style,
+                        placeholder,
+                        minLength = '0',
+                        maxLength = '4000',
+                        required = 'false',
+                        value = ''
+                    ] = splitEscaped(Value);
+                    if (!customId || !label || !style) continue;
+                    labelBuilder.setTextInputComponent(
+                        new Discord.TextInputBuilder()
+                            .setCustomId(customId)
+                            .setStyle(
+                                style === 'short' ? Discord.TextInputStyle.Short : Discord.TextInputStyle.Paragraph
+                            )
+                            .setPlaceholder(placeholder ?? '')
+                            .setMinLength(Number.parseInt(minLength))
+                            .setMaxLength(Number.parseInt(maxLength))
+                            .setRequired(required.toLowerCase() === 'true')
+                            .setValue(value)
+                    );
+
+                    break;
+                }
+                if (key === 'selectmenu') {
+                    const selectMenu = await SelectMenuParser(ctx, rawValue);
+                    if (!selectMenu) continue;
+                    switch (selectMenu.type) {
+                        case Discord.ComponentType.StringSelect:
+                            labelBuilder.setStringSelectMenuComponent(selectMenu);
+                            break;
+                        case Discord.ComponentType.UserSelect:
+                            labelBuilder.setUserSelectMenuComponent(selectMenu);
+                            break;
+                        case Discord.ComponentType.RoleSelect:
+                            labelBuilder.setRoleSelectMenuComponent(selectMenu);
+                            break;
+                        case Discord.ComponentType.MentionableSelect:
+                            labelBuilder.setMentionableSelectMenuComponent(selectMenu);
+                            break;
+                        case Discord.ComponentType.ChannelSelect:
+                            labelBuilder.setChannelSelectMenuComponent(selectMenu);
+                    }
+                    break;
+                }
+                if (key === 'fileupload' || key === 'file') {
+                    const [customId, minValue, maxValue, required = 'false'] = splitEscaped(Value);
+                    if (!customId || !label) continue;
+                    labelBuilder.setFileUploadComponent(
+                        new Discord.FileUploadBuilder()
+                            .setCustomId(customId)
+                            .setMinValues(minValue ? Number.parseInt(minValue) : 0)
+                            .setMaxValues(maxValue ? Number.parseInt(maxValue) : 5)
+                            .setRequired(required.toLowerCase() === 'true')
+                    );
+                    break;
+                }
+            }
+
+            builder.addLabelComponents(labelBuilder);
+        }
+    }
+
+    return builder.setTitle(title).setCustomId(customId).toJSON();
 }
 
 /**
@@ -1045,7 +1176,7 @@ function splitLengthParams(value: string, length = 1, type: 'emoji' | 'normal' =
  * @return {SendData} - The built result
  */
 function buildResult(
-    { embeds, components, content, attachments, flags, poll, stickers, reply, allowedMentions }: ParserData,
+    { embeds, components, modal, content, attachments, flags, poll, stickers, reply, allowedMentions }: ParserData,
     ctx: Interpreter
 ): SendData {
     const isComponentsV2 = flags.filter(Boolean).includes(ctx.util.Flags.iscomponentsv2 as Discord.MessageFlags);
@@ -1064,6 +1195,7 @@ function buildResult(
         flags: flags.filter(Boolean) as Flags,
         stickers: isComponentsV2 ? null : (stickers.filter(Boolean) as Discord.StickerResolvable[]),
         reply,
-        allowedMentions
+        allowedMentions,
+        modal
     };
 }

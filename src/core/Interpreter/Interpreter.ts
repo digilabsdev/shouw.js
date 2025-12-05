@@ -65,6 +65,7 @@ export class Interpreter extends Container {
             }
         } catch (err: any) {
             await this.error(err);
+            this.client.debug(err, 'ERROR', true);
         }
 
         return this.buildResult();

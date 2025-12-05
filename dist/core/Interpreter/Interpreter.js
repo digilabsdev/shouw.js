@@ -61,6 +61,7 @@ class Interpreter extends Container_js_1.Container {
         }
         catch (err) {
             await this.error(err);
+            this.client.debug(err, 'ERROR', true);
         }
         return this.buildResult();
     }
